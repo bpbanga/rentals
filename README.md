@@ -58,18 +58,18 @@ git clone https://github.com/ton-utilisateur/projet3.git
 cd projet3
 ./mvnw install
 
-## 📡 Utilisation de l'API
+📡 Utilisation de l'API
 
 L’API est exposée par défaut sur :
 http://localhost:8080
 
-### Documentation Swagger
+Documentation Swagger
 
 Une documentation interactive est disponible à l’adresse suivante :
 http://localhost:8080/swagger-ui/index.html
 Elle permet de tester les endpoints directement depuis le navigateur.
 
-#### Exemple de requête POST (authentification)
+Exemple de requête POST (authentification)
 POST /api/auth/login
 Content-Type: application/json
 
@@ -78,7 +78,7 @@ Content-Type: application/json
   "password": "motdepasse"
 }
 
-#### Exemple de requête GET (avec JWT)
+Exemple de requête GET (avec JWT)
 
 GET /api/properties
 Authorization: Bearer <votre_token_jwt>
