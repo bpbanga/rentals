@@ -54,17 +54,39 @@ Cette application backend repose sur **Spring Boot 3.5.3**, avec une architectur
 ### Étapes
 
 ```bash
+forker le code front-end 
 git clone https://github.com/ton-utilisateur/projet3.git
 cd projet3
 ./mvnw install
+
+Créer ton application Back-end suivant les attendues demandé.
+configuration de l'application properties pour se connecté a la base de donnné gérer les images et le logage de l'aplication
+exemple de véariables a definir :
+DB_URL=jdbc:mysql://localhost:3306/projet3
+DB_USER=projet3user
+DB_PASSWORD=projet3password
+
+JWT_SECRET=your256bitsecretkey
+UPLOAD_DIR=uploads
+
+injection de ses variables dans l'application properties 
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USER}
+spring.datasource.password=${DB_PASSWORD}
+
+jwt.secret=${JWT_SECRET}
+pages.uploadDir=${UPLOAD_DIR:uploads}
+
 
 📡 Utilisation de l'API
 
 L’API est exposée par défaut sur :
 http://localhost:8080
 
-Documentation Swagger
+Le lancement de l'application se fait via la commande :
+mvn spring-boot:run
 
+Documentation Swagger
 Une documentation interactive est disponible à l’adresse suivante :
 http://localhost:8080/swagger-ui/index.html
 Elle permet de tester les endpoints directement depuis le navigateur.
@@ -79,7 +101,6 @@ Content-Type: application/json
 }
 
 Exemple de requête GET (avec JWT)
-
 GET /api/properties
 Authorization: Bearer <votre_token_jwt>
 🔐 Les routes protégées nécessitent un token JWT valide dans l’en-tête Authorization.
