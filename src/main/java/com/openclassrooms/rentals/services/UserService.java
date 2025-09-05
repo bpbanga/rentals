@@ -1,12 +1,13 @@
 package com.openclassrooms.rentals.services;
 import java.time.LocalDateTime;
 import java.util.Optional;
-
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import com.openclassrooms.rentals.exceptions.UserNotFoundException;
+import com.openclassrooms.rentals.dto.UserDto;
 import com.openclassrooms.rentals.dto.UserProfileResponse;
 import com.openclassrooms.rentals.exceptions.EmailAlreadyUsedException;
 import com.openclassrooms.rentals.exceptions.InvalidUserDetailsException;
@@ -14,52 +15,22 @@ import com.openclassrooms.rentals.exceptions.InvalidUserProfileException;
 import com.openclassrooms.rentals.models.AppUserDetails;
 import com.openclassrooms.rentals.models.UserEntity;
 import com.openclassrooms.rentals.repositorys.UserRepository;
+import com.openclassrooms.rentals.services.map.UserMapper;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
     
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder){
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserMapper userMapper){
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.userMapper = userMapper;
     }
-
-    // public UserEntity createUser(String email, String password , String name){
-    //     UserEntity user = new UserEntity();
-    //     user.setEmail(email);
-    //     user.setPassword(passwordEncoder.encode(password));
-    //     user.setName(name);
-    //     user.setCreatedAt(LocalDateTime.now());
-    //     user.setUpdatedAt(LocalDateTime.now());
-    //     return userRepository.save(user);
-    // }  
-
-    // public boolean emailExists(String email) {
-    // return userRepository.existsByEmail(email);
-    // }
-
-    // public UserEntity createUser(String email, String password, String name) {
-
-    //     if (isEmailAlreadyUsed(email)) {
-    //         throw new EmailAlreadyUsedException("Email '" + email + "' is already present in database.",
-    //                 "DefaultUserManagementService.createUser");
-    //     }
-
-    //     UserEntity user = new UserEntity();
-    //     user.setEmail(email);
-    //     user.setPassword(passwordEncoder.encode(password));
-    //     user.setName(name);
-    //     user.setCreatedAt(LocalDateTime.now());
-    //     user.setUpdatedAt(LocalDateTime.now());
-    //     userRepository.save(user);
-
-    //     return new UserEntity();
-    // }
-
-     public AppUserDetails createUser(String email, String plainPassword, String name) {
+     public AppUserDetails createUser(String email, String password, String name) {
 
         if (isEmailAlreadyUsed(email)) {
             throw new EmailAlreadyUsedException("Email '" + email + "' is already present in database.",
@@ -68,7 +39,7 @@ public class UserService {
 
         UserEntity user = new UserEntity();
         user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(plainPassword));
+        user.setPassword(passwordEncoder.encode(password));
         user.setName(name);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -86,25 +57,19 @@ public class UserService {
 
     public Optional<Long> getUserId(String email) {
         return this.userRepository.findByEmail(email)
-                .map(user -> user.getId().longValue());
+                .map(user -> user.getId());
     }
-
     public UserProfileResponse getUserProfilebyEmail(String email) {
-        UserDetails userDetails = getUserbyEmail(email);
+    UserDetails userDetails = getUserbyEmail(email);
 
-        if (!(userDetails instanceof AppUserDetails)) {
-            throw new InvalidUserDetailsException("UserDetails is not of the expected type",
-                    "DefaultUserManagementService.getUserProfile");
-        }
-        AppUserDetails appUserDetails = (AppUserDetails) userDetails;
-
-        return new UserProfileResponse(
-                appUserDetails.getId(),
-                appUserDetails.getName(),
-                appUserDetails.getEmail(),
-                appUserDetails.getCreatedAt().toString(),
-                appUserDetails.getUpdatedAt().toString());
+    if (!(userDetails instanceof AppUserDetails)) {
+        throw new InvalidUserDetailsException("UserDetails is not of the expected type",
+                "DefaultUserManagementService.getUserProfile");
     }
+
+    AppUserDetails appUserDetails = (AppUserDetails) userDetails;
+    return userMapper.toProfileResponse(appUserDetails.getUserEntity());
+}
 
     public boolean isEmailAlreadyUsed(String email) {
 
@@ -114,13 +79,12 @@ public class UserService {
     }
 
     public Optional<UserEntity> getUserEntityById(Long userId) {
-        return userRepository.findById(userId.intValue());
+        return userRepository.findById(userId);
 
     }
 
     public Optional<UserEntity> getUserEntityByMail(String email) {
         return userRepository.findByEmail(email);
-
     }
 
     public UserProfileResponse getUserProfilebyId(Long userId) {
@@ -141,5 +105,20 @@ public class UserService {
 
         return getUserProfilebyEmail(user.getEmail());
     }
-}
 
+    public Optional<UserEntity> getCurrentUserEntity() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        if (principal instanceof AppUserDetails) {
+            AppUserDetails userDetails = (AppUserDetails) principal;
+            return userRepository.findById(userDetails.getId());
+        }
+
+        return Optional.empty();
+    }
+
+	@Transactional(readOnly = true)
+	public Optional<UserDto> findById(Long id) {
+		return userRepository.findById(id).map(u -> userMapper.toDto(u));
+	}
+}
