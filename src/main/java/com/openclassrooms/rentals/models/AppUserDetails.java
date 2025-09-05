@@ -43,6 +43,11 @@ public class AppUserDetails implements UserDetails {
         return List.of(() -> "ROLE_USER");
     }
 
+    public UserEntity getUserEntity() {
+        return this.user;
+    }
+
+
     @Override
     public String getPassword() {
         return user.getPassword();
@@ -54,7 +59,7 @@ public class AppUserDetails implements UserDetails {
     }
 
     public Long getId() {
-        return Long.valueOf(user.getId().longValue());
+        return Long.valueOf(user.getId());
     }
 
     public String getName() {
@@ -80,4 +85,5 @@ public class AppUserDetails implements UserDetails {
                 ", CreatedAt: " + getCreatedAt() +
                 ", UpdatedAt: " + getUpdatedAt();
     }
+    
 }

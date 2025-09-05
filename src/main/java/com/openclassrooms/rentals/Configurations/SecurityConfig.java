@@ -1,5 +1,4 @@
 package com.openclassrooms.rentals.Configurations;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -21,68 +20,157 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import com.openclassrooms.rentals.security.HmacJwtFactory;
 import com.openclassrooms.rentals.security.JwtAuthenticationFilter;
 
+
+/**
+ * Spring Boot Security Configuration.
+ *
+ * This class sets up authentication and authorization mechanisms using Spring Security.
+ * It integrates a custom JWT filter, defines public routes, configures CORS,
+ * and manages password encoders and authentication providers.
+ *
+ * Key features:
+ * <ul>
+ *   <li>Stateless authentication using JWT</li>
+ *   <li>HTTP request filtering via JwtAuthenticationFilter</li>
+ *   <li>Definition of publicly accessible endpoints</li>
+ *   <li>CORS configuration to allow requests from the Angular frontend</li>
+ *   <li>Integration of a DAO-based AuthenticationProvider using UserDetailsService</li>
+ *   <li>Activation of Swagger UI and API documentation endpoints</li>
+ * </ul>
+ *
+ * @author Pagès
+ */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
     private final HmacJwtFactory jwtFactory;
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
-     private static final String[] AUTH_WHITELIST = {
-            "/auth/login",
-            "/auth/register",
-            "/swagger-ui/**",
-            "/v3/api-docs/**"
+
+    /**
+     * List of endpoints that are publicly accessible without authentication.
+     */
+    private static final String[] AUTH_WHITELIST = {
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/files/**",
 
     };
 
-    public SecurityConfig(@Lazy JwtAuthenticationFilter jwtAuthFilter, UserDetailsService userDetailsService, HmacJwtFactory jwtFactory) {
+    /**
+     * Constructor for injecting required security components.
+     *
+     * @param jwtAuthFilter the custom JWT authentication filter
+     * @param userDetailsService the service used to load user-specific data
+     * @param jwtFactory the factory for encoding and decoding JWT tokens
+     */
+    public SecurityConfig(@Lazy JwtAuthenticationFilter jwtAuthFilter,
+                          UserDetailsService userDetailsService,
+                          HmacJwtFactory jwtFactory) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
         this.jwtFactory = jwtFactory;
     }
 
+    /**
+     * Provides a BCrypt password encoder bean.
+     *
+     * @return a BCryptPasswordEncoder instance
+     */
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Configures the security filter chain for HTTP requests.
+     *
+     * @param http the HttpSecurity object to configure
+     * @return the configured SecurityFilterChain
+     * @throws Exception if an error occurs during configuration
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http
-                .csrf(csrf -> csrf.disable())
-                .httpBasic(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(AUTH_WHITELIST).permitAll() 
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .authenticationProvider(authenticationProvider())
-                .build();
+        http.csrf(csrf -> csrf.disable());
+        http.cors();
+
+        http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(AUTH_WHITELIST).permitAll()
+                .anyRequest().authenticated())
+            .httpBasic(Customizer.withDefaults())
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .authenticationProvider(authenticationProvider());
+
+        return http.build();
     }
 
+    /**
+     * Provides the authentication provider using DAO and BCrypt.
+     *
+     * @return the configured AuthenticationProvider
+     */
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService); // ou userDetailsService
+        provider.setUserDetailsService(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
         return provider;
     }
+
+    /**
+     * Builds the authentication manager using the configured user details service and password encoder.
+     *
+     * @param http the HttpSecurity object
+     * @param passwordEncoder the password encoder to use
+     * @return the configured AuthenticationManager
+     * @throws Exception if an error occurs during setup
+     */
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http, PasswordEncoder passwordEncoder)
             throws Exception {
         AuthenticationManagerBuilder authenticationManagerBuilder = http
-                .getSharedObject(AuthenticationManagerBuilder.class);
+            .getSharedObject(AuthenticationManagerBuilder.class);
         authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
         return authenticationManagerBuilder.build();
     }
 
+    /**
+     * Provides the JWT encoder bean using the configured factory.
+     *
+     * @return a JwtEncoder instance
+     */
     @Bean
-public JwtEncoder jwtEncoder() {
-    return jwtFactory.getJwtEncoder(); 
-}
+    public JwtEncoder jwtEncoder() {
+        return jwtFactory.getJwtEncoder();
+    }
 
-@Bean
-public JwtDecoder jwtDecoder() {
-    return jwtFactory.getJwtDecoder(); 
-}
+    /**
+     * Provides the JWT decoder bean using the configured factory.
+     *
+     * @return a JwtDecoder instance
+     */
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return jwtFactory.getJwtDecoder();
+    }
+
+    /**
+     * Configures CORS to allow requests from the Angular frontend.
+     *
+     * @return the configured CorsConfigurationSource
+     */
+    @Bean
+    public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+        org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+        configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200"));
+        configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setAllowCredentials(true);
+
+        org.springframework.web.cors.UrlBasedCorsConfigurationSource source =
+            new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }
